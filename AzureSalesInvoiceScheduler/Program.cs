@@ -1,44 +1,47 @@
 using System;
-using System.Threading.Tasks;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.ApplicationInsights;
+using SalesInvoicesScheduler.Helpers.HelperService;
 using SalesInvoicesScheduler.Helpers;
+using SalesInvoicesScheduler.Worker;
+using SalesInvoicesScheduler.Scheduler;
 
 namespace SalesInvoicesScheduler
 {
-    public class SalesInvoicesFunction
+    public class Program
     {
-        private readonly ILogger<SalesInvoicesFunction> _logger;
+        public static IConfiguration Configuration { get; set; }
 
-        public SalesInvoicesFunction(ILogger<SalesInvoicesFunction> logger)
+        public static void Main(string[] args)
         {
-            _logger = logger;
+            Configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            CreateHostBuilder(args).Build().Run();
         }
 
-        [FunctionName("SalesInvoicesFunction")]
-        public async Task RunAsync([TimerTrigger("0 */1 * * * *")] TimerInfo timer, ILogger log)
-        {
-            log.LogInformation($"SalesInvoicesFunction triggered at: {DateTime.UtcNow}");
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
+                {
+                    // Tambahkan Application Insights untuk telemetry (opsional)
+                    services.AddApplicationInsightsTelemetryWorkerService();
 
-            try
-            {
-                var startDate = DateTime.UtcNow;
-                var endDate = DateTime.UtcNow;
-                var outputFilePath = "/Users/hyou/Documents/TEST_JSON/Test.json";
+                    // Registrasi helper
+                    services.AddTransient<HmacHelperService>();
+                    services.AddTransient<ApiHelperService>();
+                    services.AddTransient<SalesInvoicesHelper>();
 
-                await SalesInvoicesHelper.FetchAndLogSalesInvoicesAsync(
-    "ySriK1ZF1hT3x5jU", // Replace with actual CLIENT_ID
-    "zVbG8sai3CUM5uiWnewt5GLPFpwE4bUe", // Replace with actual CLIENT_SECRET
-    outputFilePath
-);
+                    // Registrasi worker
+                    services.AddSingleton<WorkerSalesInvoices>();
 
-
-                log.LogInformation("Sales invoices fetched and logged successfully.");
-            }
-            catch (Exception ex)
-            {
-                log.LogError($"Error occurred in SalesInvoicesFunction: {ex.Message}", ex);
-            }
-        }
+                    // Registrasi scheduler
+                    services.AddHostedService<SchedulerSalesInvoices>();
+                })
+                .UseWindowsService(); // Gunakan ini jika aplikasi dijalankan sebagai Windows Service
     }
 }

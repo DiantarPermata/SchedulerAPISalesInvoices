@@ -1,17 +1,18 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using SalesInvoicesScheduler.Helpers;
 
 namespace SalesInvoicesScheduler.Worker
 {
     public class WorkerSalesInvoices
     {
-        private readonly ILogger<WorkerSalesInvoices> _logger;
+        private readonly ILogger _logger;
+        private readonly SalesInvoicesScheduler.Helpers.SalesInvoicesHelper _helper;
 
-        public WorkerSalesInvoices(ILogger<WorkerSalesInvoices> logger)
+        public WorkerSalesInvoices(ILogger<WorkerSalesInvoices> logger, SalesInvoicesScheduler.Helpers.SalesInvoicesHelper helper)
         {
             _logger = logger;
+            _helper = helper;
         }
 
         public async Task RunAsync()
@@ -20,15 +21,10 @@ namespace SalesInvoicesScheduler.Worker
             {
                 _logger.LogInformation($"Worker started at: {DateTime.UtcNow}");
 
-                var startDate = DateTime.UtcNow;
-                var endDate = DateTime.UtcNow;
-                var outputFilePath = "/Users/hyou/Documents/TEST_JSON/Test.json";
-
-                await SalesInvoicesHelper.FetchAndLogSalesInvoicesAsync(
-    "ySriK1ZF1hT3x5jU", // Replace with actual CLIENT_ID
-    "zVbG8sai3CUM5uiWnewt5GLPFpwE4bUe", // Replace with actual CLIENT_SECRET
-    outputFilePath
-);
+                await _helper.FetchAndLogSalesInvoicesAsync(
+                    "ySriK1ZF1hT3x5jU", // Replace with actual CLIENT_ID
+                    "zVbG8sai3CUM5uiWnewt5GLPFpwE4bUe" // Replace with actual CLIENT_SECRET
+                );
 
                 _logger.LogInformation($"Worker completed at: {DateTime.UtcNow}");
             }
